@@ -1,0 +1,34 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: fsa-stack-argo
+  namespace: argocd
+spec:
+  project: default
+  destination: 
+    name: ''  
+    server: https://kubernetes.default.svc
+    namespace: fsa-stack
+  source:
+    path: .      
+    repoURL: https://github.com/giraffeman123/fsa-stack.git  
+    targetRevision: HEAD    
+    # helm:
+    #   valueFiles:
+    #   - fsa-stack-prod-values.yaml        
+    helm:
+      valuesObject:
+        ingress:          
+          annotations:                 
+            alb.ingress.kubernetes.io/certificate-arn: <ADD_CERTIFICATE_HERE>
+        deployment:        
+          fsaApi:            
+            imageName: <ADD_IMAGE_URL_HERE>           
+          fsaWebApp:            
+            imageName: <ADD_IMAGE_URL_HERE>                                   
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+    - CreateNamespace=true      

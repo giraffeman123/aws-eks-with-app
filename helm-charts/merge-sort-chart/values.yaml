@@ -1,0 +1,71 @@
+# Default values for multiple-deployment.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+nameOverride: ""
+fullnameOverride: ""
+
+namespace: merge-sort
+   
+ingress:
+  enabled: true
+  className: "alb"
+  annotations:     
+    # kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/load-balancer-name: t5alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/group.name: test-alb
+    external-dns.alpha.kubernetes.io/hostname: merge-sort.mydomain.com    
+    # alb.ingress.kubernetes.io/tags: product=check     
+  host: merge-sort.mydomain.com
+  path: /
+  pathType: Prefix
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+deployment:        
+  mergeSort:
+    imagePullSecrets: []    
+    imageName: elliotmtz12/merge-sort
+    imageTag: latest
+    imagePullPolicy: Always
+    containerPort: 8080
+    replicaCount: 2
+    service:
+      name: merge-sort
+      type: NodePort
+      port: 8080        
+     
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

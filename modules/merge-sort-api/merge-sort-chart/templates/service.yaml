@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.deployment.mergeSort.service.name }}    
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: {{ (splitList "/" .Values.deployment.mergeSort.imageName) | last }}
+  type: {{ .Values.deployment.mergeSort.service.type }}    
+  ports:
+    - protocol: TCP      
+      port: {{ .Values.deployment.mergeSort.service.port }}
+      {{- if or (eq "NodePort" .Values.deployment.mergeSort.service.type) (eq "ClusterIP" .Values.deployment.mergeSort.service.type) }}      
+      targetPort: {{ .Values.deployment.mergeSort.containerPort }}
+      {{- else }}
+        {{- fail "Invalid service type. Service type must be NodePort or ClusterIP" }}
+      {{- end }}

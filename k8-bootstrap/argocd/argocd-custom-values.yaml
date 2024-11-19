@@ -1,0 +1,69 @@
+## Globally shared configuration
+global:
+  # -- Default domain used by all components
+  ## Used for ingresses, certificates, SSO, notifications, etc.
+  domain: <ADD_DOMAIN_HERE>
+# redis-ha:
+#   enabled: true
+controller:
+  replicas: 1  
+repoServer:
+  replicas: 2
+applicationSet:
+  replicas: 2
+## Server
+server:
+  # -- Argo CD server name
+  name: server
+
+  # -- The number of server pods to run
+  replicas: 2
+    
+  # Argo CD server ingress configuration
+  ingress:
+    # -- Enable an ingress resource for the Argo CD server
+    enabled: true
+    # -- Specific implementation for ingress controller. One of `generic`, `aws` or `gke`
+    ## Additional configuration might be required in related configuration sections
+    controller: generic
+    # -- Additional ingress labels
+    labels: {}
+    # -- Additional ingress annotations
+    ## Ref: https://argo-cd.readthedocs.io/en/stable/operator-manual/ingress/#option-1-ssl-passthrough
+    annotations: 
+      alb.ingress.kubernetes.io/load-balancer-name: t5alb
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/group.name: test-alb
+      external-dns.alpha.kubernetes.io/hostname: <ADD_DOMAIN_HERE>        
+      alb.ingress.kubernetes.io/certificate-arn: <ADD_CERTIFICATE_HERE>
+      alb.ingress.kubernetes.io/backend-protocol: HTTPS
+      alb.ingress.kubernetes.io/healthcheck-interval-seconds: "30"
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+      alb.ingress.kubernetes.io/load-balancer-attributes: routing.http2.enabled=true            
+      alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-FS-1-2-2019-08      
+
+    # -- Defines which ingress controller will implement the resource
+    ingressClassName: "alb"
+
+    # -- Argo CD server hostname
+    # @default -- `""` (defaults to global.domain)
+    hostname: "<ADD_DOMAIN_HERE>"
+
+    # -- The path to Argo CD server
+    path: /
+
+    # -- Ingress path type. One of `Exact`, `Prefix` or `ImplementationSpecific`
+    pathType: Prefix
+
+    # -- Enable TLS configuration for the hostname defined at `server.ingress.hostname`
+    ## TLS certificate will be retrieved from a TLS secret `argocd-server-tls`
+    ## You can create this secret via `certificate` or `certificateSecret` option
+    tls: true
+
+    # -- Additional TLS configuration
+    # @default -- `[]` (See [values.yaml])
+    extraTls: 
+      - hosts:
+        - <ADD_DOMAIN_HERE>
+      #   secretName: your-certificate-name

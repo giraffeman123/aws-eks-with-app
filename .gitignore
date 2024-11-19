@@ -1,0 +1,10 @@
+.terraform/*
+.terraform.*
+terraform.*
+*.pem
+k8-config.env
+aws-test.pem
+argocd-prod-values.yaml
+fsa-stack-app.yaml
+dev.tfvars
+provider.tf

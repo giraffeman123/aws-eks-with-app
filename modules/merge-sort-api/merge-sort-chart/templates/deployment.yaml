@@ -1,0 +1,33 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ (splitList "/" .Values.deployment.mergeSort.imageName) | last }}  
+  namespace: {{ .Values.namespace }}
+  labels:
+    name: {{ (splitList "/" .Values.deployment.mergeSort.imageName) | last }}-apps
+spec:
+  replicas: {{ .Values.deployment.mergeSort.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ (splitList "/" .Values.deployment.mergeSort.imageName) | last }}
+  template:
+    metadata:
+      labels:
+        app: {{ (splitList "/" .Values.deployment.mergeSort.imageName) | last }}
+    spec:
+      containers:
+        - name: {{ (splitList "/" .Values.deployment.mergeSort.imageName) | last }}-app
+          image: {{ .Values.deployment.mergeSort.imageName }}:{{ .Values.deployment.mergeSort.imageTag }}
+          imagePullPolicy: {{ .Values.deployment.mergeSort.imagePullPolicy }}
+          env:
+            - name: TZ
+              value: America/Tijuana
+            - name: PORT
+              value: "{{ .Values.deployment.mergeSort.containerPort }}"              
+          ports:
+            - containerPort: {{ .Values.deployment.mergeSort.containerPort }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

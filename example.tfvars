@@ -1,0 +1,12 @@
+aws_region                  = "us-east-2"
+main_domain_name            = "<ADD_MAIN_DOMAIN_HERE>"
+website_domain              = "<ADD_WEBSITE_DOMAIN_HERE>"
+argocd_domain               = "<ADD_ARGOCD_DOMAIN_HERE>"
+cluster_name                = "learn-aws-eks"
+db_name                     = "flightdb"
+db_admin_user               = "admin"
+db_pwd                      = "holamundo123"
+fsa_api_docker_image_url    = "<ADD_IMAGE_URL_HERE>"
+fsa_webapp_docker_image_url = "<ADD_IMAGE_URL_HERE>"
+
+fsa_stack_git_credentials_secret = "<ADD_SECRET_NAME_HERE>"
