@@ -30,15 +30,7 @@ variable "argocd_domain" {
   type = string
 }
 
-variable "db_name" {
-  type = string
-}
-
-variable "db_admin_user" {
-  type = string
-}
-
-variable "db_pwd" {
+variable "db_credentials_secret" {
   type = string
 }
 

@@ -24,4 +24,12 @@ mysql 	--host=${DATABASE_ENDPOINT} \
 		${DATABASE_NAME} \
 		< /home/ubuntu/init.sql
 
+aws secretsmanager put-secret-value --secret-id ${DB_SECRET_NAME} --secret-string \
+	'{
+		"DB_USER":"'${DATABASE_USER}'",
+		"DB_PWD":"'${DATABASE_PASSWORD}'",
+		"DB_NAME":"'${DATABASE_NAME}'",
+		"DB_HOST":"'${DATABASE_ENDPOINT}'"
+	}'
+
 sudo shutdown now

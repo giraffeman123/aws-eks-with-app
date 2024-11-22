@@ -25,6 +25,28 @@ resource "aws_iam_role_policy_attachment" "this" {
   policy_arn = element(local.role_policy_arns, count.index)
 }
 
+resource "aws_iam_role_policy" "rds_bootstrap_node_custom_policy" {
+  name = "RDS-Bootstrap-EC2-Inline-Policy-${var.mandatory_tags.Environment}"
+  role = aws_iam_role.this.id
+  policy = jsonencode(
+    {
+      "Version" : "2012-10-17",
+      "Statement" : [
+        {
+          "Effect" : "Allow",
+          "Action" : [
+            "secretsmanager:GetSecretValue",
+            "secretsmanager:PutSecretValue",
+          ],
+          "Resource" : [
+            "${data.aws_secretsmanager_secret.db_credentials.id}"
+          ]
+        }
+      ]
+    }
+  )
+}
+
 resource "aws_security_group" "ephemeral_instance_sg" {
   vpc_id      = var.vpc_id
   name        = "RDS-Bootstrap-${var.mandatory_tags.Environment}-sg"
@@ -93,11 +115,12 @@ data "template_file" "ephemeral_instance_user_data" {
   template = file("${path.module}/${local.ephemeral_instance_user_data_filepath}")
   vars = {
     DATABASE_ENDPOINT   = "${aws_db_instance.this.address}"
-    DATABASE_NAME       = "${var.db_name}"
-    DATABASE_USER       = "${var.db_admin_user}"
-    DATABASE_PASSWORD   = "${aws_secretsmanager_secret_version.db_pwd.secret_string}"
+    DATABASE_NAME       = "${jsondecode(data.aws_secretsmanager_secret_version.secret_db_credentials.secret_string)["DB_NAME"]}"
+    DATABASE_USER       = "${jsondecode(data.aws_secretsmanager_secret_version.secret_db_credentials.secret_string)["DB_USER"]}"
+    DATABASE_PASSWORD   = "${jsondecode(data.aws_secretsmanager_secret_version.secret_db_credentials.secret_string)["DB_PWD"]}"
     DATABASE_PORT       = "${var.db_port}"
     BOOTSTRAP_DB_SCRIPT = "${data.template_file.bootstrap_db_script.rendered}"
+    DB_SECRET_NAME      = "${var.db_credentials_secret}"
   }
 }
 

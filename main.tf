@@ -16,23 +16,23 @@ module "tags" {
 #   vpc_id = var.vpc_id
 # }
 
-# module "vpc" {
-#   source                     = "./modules/new-vpc"
-#   mandatory_tags             = module.tags.mandatory_tags
-#   vpc_cidr_block             = "10.0.0.0/16"
-#   public_subnets_cidr_block  = ["10.0.0.0/20", "10.0.128.0/20"]
-#   private_subnets_cidr_block = ["10.0.16.0/20", "10.0.144.0/20"]
+module "vpc" {
+  source                     = "./modules/new-vpc"
+  mandatory_tags             = module.tags.mandatory_tags
+  vpc_cidr_block             = "10.0.0.0/16"
+  public_subnets_cidr_block  = ["10.0.0.0/20", "10.0.128.0/20"]
+  private_subnets_cidr_block = ["10.0.16.0/20", "10.0.144.0/20"]
 
-#   public_subnet_tags = {
-#     "kubernetes.io/cluster/${local.constructed_cluster_name}" = "shared"
-#     "kubernetes.io/role/elb"                                  = 1
-#   }
+  public_subnet_tags = {
+    "kubernetes.io/cluster/${local.constructed_cluster_name}" = "shared"
+    "kubernetes.io/role/elb"                                  = 1
+  }
 
-#   private_subnet_tags = {
-#     "kubernetes.io/cluster/${local.constructed_cluster_name}" = "shared"
-#     "kubernetes.io/role/internal-elb"                         = 1
-#   }
-# }
+  private_subnet_tags = {
+    "kubernetes.io/cluster/${local.constructed_cluster_name}" = "shared"
+    "kubernetes.io/role/internal-elb"                         = 1
+  }
+}
 
 module "pipelines" {
   source         = "./modules/pipelines"
@@ -52,27 +52,25 @@ module "pipelines" {
   fsa_stack_git_credentials_secret = var.fsa_stack_git_credentials_secret
 }
 
-# module "rds" {
-#   source                     = "./modules/rds"
-#   mandatory_tags             = module.tags.mandatory_tags
-#   vpc_id                     = module.vpc.vpc_id
-#   private_subnets_ids        = module.vpc.private_subnets_ids
-#   private_subnets_cidr_block = module.vpc.private_subnets_cidr_block
-#   db_name                    = var.db_name
-#   db_admin_user              = var.db_admin_user
-#   db_pwd                     = var.db_pwd
-#   db_port                    = 3306
-# }
+module "rds" {
+  source                     = "./modules/rds"
+  mandatory_tags             = module.tags.mandatory_tags
+  vpc_id                     = module.vpc.vpc_id
+  private_subnets_ids        = module.vpc.private_subnets_ids
+  private_subnets_cidr_block = module.vpc.private_subnets_cidr_block
+  db_credentials_secret      = var.db_credentials_secret
+  db_port                    = 3306
+}
 
-# module "eks_cluster" {
-#   source          = "./modules/eks-cluster"
-#   mandatory_tags  = module.tags.mandatory_tags
-#   cluster_name    = local.constructed_cluster_name
-#   cluster_version = "1.26"
+module "eks_cluster" {
+  source          = "./modules/eks-cluster"
+  mandatory_tags  = module.tags.mandatory_tags
+  cluster_name    = local.constructed_cluster_name
+  cluster_version = "1.26"
 
-#   vpc_id              = module.vpc.vpc_id
-#   private_subnets_ids = module.vpc.private_subnets_ids
-#   main_domain_name    = var.main_domain_name
-#   website_domain      = var.website_domain
-#   argocd_domain       = var.argocd_domain
-# }
+  vpc_id              = module.vpc.vpc_id
+  private_subnets_ids = module.vpc.private_subnets_ids
+  main_domain_name    = var.main_domain_name
+  website_domain      = var.website_domain
+  argocd_domain       = var.argocd_domain
+}

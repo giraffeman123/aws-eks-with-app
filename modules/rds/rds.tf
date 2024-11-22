@@ -56,24 +56,14 @@ resource "aws_db_subnet_group" "my_db_subnet_group" {
   }
 }
 
-resource "aws_secretsmanager_secret" "db_pwd" {
-  name                    = "flights-db-password"
-  recovery_window_in_days = 0
-}
-
-resource "aws_secretsmanager_secret_version" "db_pwd" {
-  secret_id     = aws_secretsmanager_secret.db_pwd.id
-  secret_string = var.db_pwd
-}
-
 resource "aws_db_instance" "this" {
   allocated_storage = 10
   engine            = "mysql"
   instance_class    = "db.t3.micro"
-  identifier        = var.db_name
-  username          = var.db_admin_user
-  password          = aws_secretsmanager_secret_version.db_pwd.secret_string
-  db_name           = var.db_name
+  identifier        = jsondecode(data.aws_secretsmanager_secret_version.secret_db_credentials.secret_string)["DB_NAME"]
+  username          = jsondecode(data.aws_secretsmanager_secret_version.secret_db_credentials.secret_string)["DB_USER"]
+  password          = jsondecode(data.aws_secretsmanager_secret_version.secret_db_credentials.secret_string)["DB_PWD"]
+  db_name           = jsondecode(data.aws_secretsmanager_secret_version.secret_db_credentials.secret_string)["DB_NAME"]
   port              = var.db_port
 
   publicly_accessible = false
