@@ -1,0 +1,44 @@
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  namespace: istio-system
+  name: istiocontrolplane
+spec:
+  profile: minimal
+  values:
+    telemetry:
+      v2:
+        prometheus:
+          configOverride:
+            gateway: {}
+            inboundSidecar:
+              metrics:
+                - name: requests_total
+                  dimensions:
+                    destination_port: string(destination.port)
+                    request_host: request.host
+                    request_path: request.path
+                    request_url_path: request.url_path
+                    request_method: request.method
+                    request_headers: request.headers
+                    request_client_ip: "(('x-original-forwarded-for' in request.headers) ? request.headers['x-original-forwarded-for'] : request.headers['x-forwarded-for'])"
+                    request_referer: request.referer
+                    request_useragent: request.useragent
+                    request_query: request.query
+            outboundSidecar:
+              metrics:
+                - name: requests_total
+                  dimensions:
+                    destination_port: string(destination.port)
+                    request_host: request.host
+                    request_path: request.path
+                    request_url_path: request.url_path
+                    request_method: request.method
+                    request_headers: request.headers
+                    request_client_ip: "(('x-original-forwarded-for' in request.headers) ? request.headers['x-original-forwarded-for'] : request.headers['x-forwarded-for'])"
+                    request_referer: request.referer
+                    request_useragent: request.useragent
+                    request_query: request.query
+    global:
+      proxy:
+        privileged: true

@@ -125,7 +125,6 @@ data "template_file" "ephemeral_instance_user_data" {
 }
 
 resource "aws_instance" "ephemeral_instance" {
-  # <--- CURRENT AMI IS Ubuntu Server 22.04 LTS [ami-024e6efaf93d85776] --->
   ami                  = data.aws_ami.ephemeral_instance_ami.id
   instance_type        = "t2.micro"
   iam_instance_profile = aws_iam_instance_profile.this.name
@@ -135,9 +134,12 @@ resource "aws_instance" "ephemeral_instance" {
   # <--- CREATE KEY-PAIR IN AWS CONSOLE THEN REFERENCE NAME OF IT HERE --->
   key_name  = "aws-test"
   user_data = base64encode(data.template_file.ephemeral_instance_user_data.rendered)
-  tags = {
-    Name = "rds-bootstrap-node-${var.mandatory_tags.Environment}"
-  }
+  tags = merge(
+    var.mandatory_tags,
+    {
+      Name = "rds-bootstrap-node-${var.mandatory_tags.Environment}"
+    }
+  )
 
   # <--- THIS IS THE ROOT DISK --->
   root_block_device {

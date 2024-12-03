@@ -22,15 +22,3 @@ variable "public_subnets_ids" {
   type    = list(string)
   default = [""]
 }
-
-variable "main_domain_name" {
-  type = string
-}
-
-variable "website_domain" {
-  type = string
-}
-
-variable "argocd_domain" {
-  type = string
-}

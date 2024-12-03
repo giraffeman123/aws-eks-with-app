@@ -3,6 +3,10 @@
 #Instalacion paquetes necesarios
 sudo apt-get update
 sudo apt-get -y install mysql-client-core-8.0
+sudo apt-get -y install unzip
+sudo curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+sudo unzip awscliv2.zip
+sudo ./aws/install
 
 #configure environment variables for tomcat
 cat > /home/ubuntu/setenv.sh <<EOF

@@ -105,7 +105,7 @@ spec:
             - --source=ingress
             - --domain-filter=$hosted_zone # will make ExternalDNS see only the hosted zones matching provided domain, omit to process all available hosted zones
             - --provider=aws
-            - --policy=upsert-only # would prevent ExternalDNS from deleting any records, omit to enable full synchronization
+            - --policy=sync # (valid values are upsert-only, sync) would prevent ExternalDNS from deleting any records, omit to enable full synchronization
             - --aws-zone-type=public # only look at public hosted zones (valid values are public, private or no value for both)
             - --registry=txt
             - --txt-owner-id=external-dns
@@ -122,7 +122,7 @@ alb_controller_sa="aws-load-balancer-controller"
 alb_controller_iam_policy_name="AWSLoadBalancerControllerIAMPolicy"
 
 alb_controller_iam_policy_arn=$(aws iam create-policy \
-    --policy-name $alb_controller_iam_policy_name --policy-document file://alb_controller_iam_policy.json | jq -r '.Policy.Arn')    
+    --policy-name $alb_controller_iam_policy_name --policy-document file://aws-alb-controller/alb_controller_iam_policy.json | jq -r '.Policy.Arn')    
 
 eksctl create iamserviceaccount \
   --cluster $cluster_name \
@@ -139,12 +139,186 @@ helm upgrade -i aws-load-balancer-controller eks/aws-load-balancer-controller -n
   
 kubectl -n kube-system get all
 
-#------Installing ArgoCD Controller------
-#------NOTE! FIRST VALIDATE THE GENERATED CERTIFICATE ARN FOR THE ARGOCD DOMAIN AND THEN PASTE IT INTO argocd-prod-values.yaml file
-# helm repo add argo https://argoproj.github.io/argo-helm
-# helm install argocd argo/argo-cd -f argocd/argocd-prod-values.yaml --create-namespace --namespace argocd
-# kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+#------Installing ingress-nginx Controller------
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm upgrade -i ingress-nginx ingress-nginx/ingress-nginx \
+    --version 4.2.3 \
+    --namespace kube-system \
+    --values ingress-nginx-controller/prod-values.yaml
 
-#------Deploying fsa-stack with argocd------
-#------NOTE! FIRST VALIDATE THE GENERATED CERTIFICATE ARN FOR THE WEBSITE DOMAIN AND THEN PASTE IT INTO fsa-stack-app.yaml file
-# kubectl apply -f argocd/fsa-stack-app.yaml
+#kubectl scale deployment ingress-nginx-controller -n kube-system --replicas=3
+kubectl -n kube-system get all    
+
+#------Installing Cert Manager
+cert_manager_sa="cert-manager-acme-dns01-route53"
+cert_manager_namespace="cert-manager"
+cert_manager_iam_policy_name="CertManagerIAMPolicy"
+email_address=$EMAIL_ADDRESS
+
+helm repo add jetstack https://charts.jetstack.io
+helm install cert-manager jetstack/cert-manager --namespace $cert_manager_namespace \
+  --create-namespace --set installCRDs=true
+
+kubectl -n cert-manager get all
+
+cert_manager_iam_policy_arn=$(aws iam create-policy \
+    --policy-name $cert_manager_iam_policy_name \
+    --description "This policy allows cert-manager to manage ACME DNS01 records in Route53 hosted zones. See https://cert-manager.io/docs/configuration/acme/dns01/route53" \
+    --policy-document \
+    '{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "route53:GetChange",
+      "Resource": "arn:aws:route53:::change/*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "route53:ChangeResourceRecordSets",
+        "route53:ListResourceRecordSets"
+      ],
+      "Resource": "arn:aws:route53:::hostedzone/'"$hosted_zone_id"'"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "route53:ListHostedZonesByName",
+      "Resource": "*"
+    }
+  ]
+}' | jq -r '.Policy.Arn')
+
+# echo $cert_manager_iam_policy_arn
+
+eksctl create iamserviceaccount --name $cert_manager_sa --namespace $cert_manager_namespace --cluster $cluster_name --role-name $cert_manager_sa --attach-policy-arn $cert_manager_iam_policy_arn --approve
+
+kubectl apply -f - <<EOF
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cert-manager-acme-dns01-route53-tokenrequest
+  namespace: $cert_manager_namespace
+rules:
+  - apiGroups: ['']
+    resources: ['serviceaccounts/token']
+    resourceNames: ['$cert_manager_sa']
+    verbs: ['create']
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cert-manager-acme-dns01-route53-tokenrequest
+  namespace: $cert_manager_namespace
+subjects:
+  - kind: ServiceAccount
+    name: cert-manager
+    namespace: $cert_manager_namespace
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cert-manager-acme-dns01-route53-tokenrequest
+EOF
+
+AWS_REGION=$aws_region ACCOUNT_ID=$account_id CERT_MANAGER_IRSA=$cert_manager_sa EMAIL_ADDRESS=$email_address envsubst < cert-manager/clusterissuer.yaml | kubectl apply -f -
+
+kubectl get clusterissuer
+
+
+#------Installing Fluent-Bit------
+fluent_bit_sa="fluent-bit"
+fluent_bit_namespace="amazon-cloudwatch"
+fluent_bit_iam_policy_name="FluentBitIAMPolicy"
+
+fluent_bit_iam_policy_arn=$(aws iam create-policy \
+    --policy-name $fluent_bit_iam_policy_name \
+    --description "This policy allows Fluent-Bit to send logs to AWS cloudwatch." \
+    --policy-document \
+    '{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "CWACloudWatchServerPermissions",
+            "Effect": "Allow",
+            "Action": [
+                "cloudwatch:PutMetricData",
+                "ec2:DescribeVolumes",
+                "ec2:DescribeTags",
+                "logs:PutLogEvents",
+                "logs:PutRetentionPolicy",
+                "logs:DescribeLogStreams",
+                "logs:DescribeLogGroups",
+                "logs:CreateLogStream",
+                "logs:CreateLogGroup",
+                "xray:PutTraceSegments",
+                "xray:PutTelemetryRecords",
+                "xray:GetSamplingRules",
+                "xray:GetSamplingTargets",
+                "xray:GetSamplingStatisticSummaries"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "CWASSMServerPermissions",
+            "Effect": "Allow",
+            "Action": [
+                "ssm:GetParameter"
+            ],
+            "Resource": "arn:aws:ssm:*:*:parameter/AmazonCloudWatch-*"
+        }
+    ]
+}' | jq -r '.Policy.Arn')
+
+eksctl create iamserviceaccount \
+  --cluster $cluster_name \
+  --namespace $fluent_bit_namespace \
+  --name $fluent_bit_sa \
+  --role-name $fluent_bit_sa \
+  --attach-policy-arn $fluent_bit_iam_policy_arn \
+  --approve   
+
+kubectl -n $fluent_bit_namespace delete serviceaccount $fluent_bit_sa  
+
+helm repo add fluent https://fluent.github.io/helm-charts
+fluent_bit_values_file=$(FLUENT_BIT_IRSA=$fluent_bit_sa ACCOUNT_ID=$account_id AWS_REGION=$aws_region CLUSTER_NAME=$cluster_name envsubst < fluent-bit/custom-values.yaml)
+echo "$fluent_bit_values_file" > fluent-bit/prod-values.yaml
+
+helm install fluent-bit fluent/fluent-bit \
+  --create-namespace --namespace $fluent_bit_namespace \
+  -f fluent-bit/prod-values.yaml
+
+
+# ------Deploying kube-prometheus-stack------
+kubectl create ns monitoring
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+kubectl apply -f kube-prometheus-stack/prod-certificate.yaml
+helm install -f kube-prometheus-stack/prod-values.yaml kube-prometheus-stack prometheus-community/kube-prometheus-stack --create-namespace --namespace monitoring --version 43.2.1
+
+# ------Installing ArgoCD Controller------
+# ------NOTE! FIRST VALIDATE THE GENERATED CERTIFICATE ARN FOR THE ARGOCD DOMAIN AND THEN PASTE IT INTO prod-values.yaml file
+helm repo add argo https://argoproj.github.io/argo-helm
+helm install argocd argo/argo-cd --create-namespace --namespace argocd
+kubectl apply -f argocd/prod-certificate.yaml
+kubectl apply -f argocd/prod-ingress.yaml
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+
+
+# ------Installing Istio Controller------
+istioctl operator init -f istio-with-prometheus-stack/istio-operator.yaml
+
+kubectl apply -f istio-with-prometheus-stack/prod-certificate.yaml
+kubectl apply -f istio-with-prometheus-stack/jaeger/jaeger.yaml
+kubectl apply -f istio-with-prometheus-stack/istio-prometheus/prometheus.yaml
+kubectl apply -f istio-with-prometheus-stack/istio-prometheus/prod-ingress.yaml
+kubectl apply -f istio-with-prometheus-stack/prometheus-stack/istio-service-monitor.yaml
+
+helm repo add kiali https://kiali.org/helm-charts
+helm install --namespace kiali-operator --create-namespace kiali-operator kiali/kiali-operator --version 1.67.0
+kubectl apply -f istio-with-prometheus-stack/kiali/kiali.yaml
+
+kubectl -n istio-system get secret $(kubectl -n istio-system get sa/kiali-service-account -o jsonpath="{.secrets[0].name}") -o go-template="{{.data.token | base64decode}}"
+
+
+# ------Deploying fsa-stack with argocd------
+# ------NOTE! FIRST VALIDATE THE GENERATED CERTIFICATE ARN FOR THE WEBSITE DOMAIN AND THEN PASTE IT INTO fsa-stack-app.yaml file
+kubectl apply -f argocd/fsa-stack-app.yaml

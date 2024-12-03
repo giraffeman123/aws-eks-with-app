@@ -5,15 +5,15 @@ metadata:
 spec:
   acme:
     server: https://acme-v02.api.letsencrypt.org/directory
-    email: yourmail@mail.com
+    email: ${EMAIL_ADDRESS}
     privateKeySecretRef:
       name: letsencrypt-production
     solvers:
     - dns01:
         route53:
-          region: us-east-2
-          role: <ADD_CERTIFICATE_HERE>
+          region: ${AWS_REGION}
+          role: arn:aws:iam::${ACCOUNT_ID}:role/${CERT_MANAGER_IRSA}
           auth:
             kubernetes:
               serviceAccountRef:
-                name: cert-manager-acme-dns01-route53  
+                name: ${CERT_MANAGER_IRSA}

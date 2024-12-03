@@ -8,3 +8,6 @@ argocd-prod-values.yaml
 fsa-stack-app.yaml
 dev.tfvars
 provider.tf
+prod-certificate.yaml
+prod-ingress.yaml
+prod-values.yaml

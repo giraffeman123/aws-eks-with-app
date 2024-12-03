@@ -30,6 +30,18 @@ variable "argocd_domain" {
   type = string
 }
 
+variable "prometheus_domain" {
+  type = string
+}
+
+variable "grafana_domain" {
+  type = string
+}
+
+variable "alertmanager_domain" {
+  type = string
+}
+
 variable "db_credentials_secret" {
   type = string
 }

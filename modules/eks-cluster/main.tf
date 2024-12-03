@@ -28,10 +28,20 @@ module "eks" {
 
       instance_types = ["t3.small"]
 
-      min_size     = 1
-      max_size     = 3
-      desired_size = 2
+      min_size     = 5
+      desired_size = 7
+      max_size     = 8       
     }
+
+    two = {
+      name = "node-group-2"
+
+      instance_types = ["t3.large"]
+
+      min_size     = 2
+      desired_size = 3
+      max_size     = 4       
+    }    
   }
 
   tags = var.mandatory_tags

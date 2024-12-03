@@ -1,0 +1,38 @@
+apiVersion: kiali.io/v1alpha1
+kind: Kiali
+metadata:
+  name: kiali
+  namespace: istio-system
+spec:
+  server:
+    web_fqdn: kiali.elliotmtz.com
+    web_port: 443
+    web_root: /kiali
+    web_schema: https
+  deployment:
+    ingress:
+      #class_name: "nginx"
+      enabled: true
+      override_yaml:
+        metadata:
+          annotations:        
+            kubernetes.io/tls-acme: 'true'         
+            # cert-manager.io/cluster-issuer: letsencrypt-production   
+            external-dns.alpha.kubernetes.io/hostname: kiali.elliotmtz.com                 
+        spec:
+          ingressClassName: nginx
+          tls:
+          - hosts:
+            - kiali.elliotmtz.com
+            secretName: kiali-certificate-secret
+          rules:
+          - host: kiali.elliotmtz.com
+            http:
+              paths:
+              - backend:
+                  service:
+                    name: kiali
+                    port:
+                      number: 20001
+                path: /kiali
+                pathType: Prefix
