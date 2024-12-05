@@ -24,6 +24,7 @@ kubectl delete -f istio-with-prometheus-stack/jaeger/jaeger.yaml
 kubectl delete -f istio-with-prometheus-stack/istio-prometheus/prometheus.yaml
 kubectl delete -f istio-with-prometheus-stack/istio-prometheus/prod-ingress.yaml
 kubectl delete -f istio-with-prometheus-stack/prometheus-stack/istio-service-monitor.yaml
+kubectl delete -f istio-with-prometheus-stack/custom-metric.yaml
 
 kubectl delete -f istio-with-prometheus-stack/kiali/kiali.yaml
 

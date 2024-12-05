@@ -4,7 +4,7 @@ metadata:
   name: istio-federation
   namespace: monitoring
   labels:
-    release: prometheus-stack
+    release: kube-prometheus-stack
     app.kubernetes.io/name: istio-prometheus
 spec:
   namespaceSelector:

@@ -4,6 +4,8 @@ metadata:
   name: kiali
   namespace: istio-system
 spec:
+  auth:
+    strategy: anonymous
   server:
     web_fqdn: kiali.elliotmtz.com
     web_port: 443

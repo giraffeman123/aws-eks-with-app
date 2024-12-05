@@ -310,13 +310,23 @@ kubectl apply -f istio-with-prometheus-stack/prod-certificate.yaml
 kubectl apply -f istio-with-prometheus-stack/jaeger/jaeger.yaml
 kubectl apply -f istio-with-prometheus-stack/istio-prometheus/prometheus.yaml
 kubectl apply -f istio-with-prometheus-stack/istio-prometheus/prod-ingress.yaml
+kubectl apply -f istio-with-prometheus-stack/custom-metric.yaml
+
+# ------!!!!!!ATTENTION REQUIRED BEFORE EXECUTING prometheus-stack/istio-service-monitor.yaml!!!!!!------
+# kubectl get prometheuses.monitoring.coreos.com --all-namespaces -o jsonpath="{.items[*].spec.serviceMonitorSelector}"
+# ------Execute this comand below to find matching labels required for servicemonitor,prometheusrule CRD objects------
+# ------If the result of the command returns a value different than the current matching label(release: kube-prometheus-stack)------
+# ------Then it would be necessary to update corresponding prometheus operator CRD's with new label------
+# ------Examples of this would be istio-with-prometheus-stack/prometheus-stack/istio-service-monitor.yaml------
+# ------But also any custom prometheusrule or alert created ------
 kubectl apply -f istio-with-prometheus-stack/prometheus-stack/istio-service-monitor.yaml
 
 helm repo add kiali https://kiali.org/helm-charts
-helm install --namespace kiali-operator --create-namespace kiali-operator kiali/kiali-operator --version 1.67.0
+helm install --namespace kiali-operator --create-namespace kiali-operator kiali/kiali-operator --version 1.80.0
 kubectl apply -f istio-with-prometheus-stack/kiali/kiali.yaml
 
-kubectl -n istio-system get secret $(kubectl -n istio-system get sa/kiali-service-account -o jsonpath="{.secrets[0].name}") -o go-template="{{.data.token | base64decode}}"
+# kubectl -n istio-system get secret $(kubectl -n istio-system get sa/kiali-service-account -o jsonpath="{.secrets[0].name}") -o go-template="{{.data.token | base64decode}}"
+# kubectl get secret -n istio-system $(kubectl get sa kiali-service-account -n istio-system -o "jsonpath={.secrets[0].name}") -o jsonpath={.data.token} | base64 -d
 
 
 # ------Deploying fsa-stack with argocd------
