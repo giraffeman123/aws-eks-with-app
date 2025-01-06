@@ -8,13 +8,16 @@ account_id=$(aws sts get-caller-identity --query Account --output text)
 hosted_zone=$HOSTED_ZONE
 hosted_zone_id=$HOSTED_ZONE_ID
 
+aws eks update-kubeconfig --region $aws_region --name $cluster_name
+
+#------Installing Karpenter------
+. ./karpenter/install-karpenter.sh
+
+#------Installing External DNS------
 external_dns_sa="external-dns"
 external_dns_namespace="external-dns"
 external_dns_iam_policy_name="AWSExternalDNSIAMPolicy"
 
-aws eks update-kubeconfig --region $aws_region --name $cluster_name
-
-#------Installing External DNS------
 external_dns_iam_policy_arn=$(aws iam create-policy \
     --policy-name $external_dns_iam_policy_name \
     --policy-document \

@@ -1,4 +1,5 @@
 data "aws_region" "current" {}
+data "aws_caller_identity" "current" {}
 
 resource "random_string" "random" {
   length  = 8
@@ -51,7 +52,12 @@ module "eks" {
 
       min_size     = 3
       desired_size = 5
-      max_size     = 7       
+      max_size     = 7
+
+      iam_role_additional_policies = {
+        # Required by Karpenter
+        additional = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+      }             
     }
 
     # two = {
@@ -66,6 +72,9 @@ module "eks" {
   }
 
   tags = var.mandatory_tags
+  node_security_group_tags = merge(var.mandatory_tags, {
+    "karpenter.sh/discovery" = var.cluster_name
+  })  
 }
 
 provider "kubernetes" {
